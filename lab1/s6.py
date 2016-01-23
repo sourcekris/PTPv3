@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # 
 # Electrasoft FTP Client exploit
-# Author: Kris Hunt 
+# Author: Kris Hunt - https://ctf.rip
 #
 # Targets: 
 # 1 - Windows XP SP3
